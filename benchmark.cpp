@@ -92,12 +92,22 @@ int main(int argc, char** argv)
         memcpy((void *)Xcopy, (const void *)X, sizeof(double)*n);
         memcpy((void *)Ycopy, (const void *)Y, sizeof(double)*n);
 
-        // insert start timer code here
+  // start timer (only around the VMM call)
+  auto t0 = std::chrono::high_resolution_clock::now();
 
-        // call the method to do the work
-        my_dgemv(n, A, X, Y); 
+  // call the method to do the work
+  my_dgemv(n, A, X, Y);
 
-        // insert end timer code here, and print out the elapsed time for this problem size
+  // end timer and report elapsed time and MFLOP/s
+  auto t1 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = t1 - t0;
+  double seconds = elapsed.count();
+
+  // Compute FLOPs for y := A*x + y. We use the common simplification of 2*N^2 FLOPs
+  double flops = 2.0 * (double)n * (double)n;
+  double mflops = (flops / 1.0e6) / seconds;
+
+  printf("N=%d  time=%.6f s  MFLOP/s=%.2f\n", n, seconds, mflops);
 
 
         // now invoke the cblas method to compute the matrix-vector multiplye

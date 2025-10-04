@@ -7,6 +7,14 @@ const char* dgemv_desc = "Vectorized implementation of matrix-vector multiply.";
  * On exit, A and X maintain their input values.
  */
 void my_dgemv(int n, double* A, double* x, double* y) {
-   // insert your code here: implementation of vectorized vector-matrix multiply
-
+   // The vectorized target should be the exact same code as the basic version
+   // so the compiler's automatic vectorizer can act on it. Do not add pragmas.
+   for (int i = 0; i < n; ++i) {
+      double sum = 0.0;
+      double* Ai = A + i * n;
+      for (int j = 0; j < n; ++j) {
+         sum += Ai[j] * x[j];
+      }
+      y[i] += sum;
+   }
 }

@@ -1,0 +1,9 @@
+# ignore build artifacts
+build/
+
+# editor temp files
+*.swp
+*.swo
+*.~
+# vim backup
+*~
