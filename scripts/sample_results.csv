@@ -1,0 +1,8 @@
+# impl,threads,trial,N,seconds,mflops
+benchmark-basic,1,1,1024,0.0005,4000
+benchmark-basic,1,1,2048,0.0040,2000
+benchmark-vectorized,1,1,1024,0.0003,6666
+benchmark-vectorized,1,1,2048,0.0030,2666
+benchmark-blas,1,1,2048,0.0015,5333
+benchmark-openmp,1,1,2048,0.0045,2666
+benchmark-openmp,4,1,2048,0.0012,10000
