@@ -62,7 +62,101 @@ def prepare_series(rows):
         Ns.add(r['N'])
     return data, sorted(Ns)
 
-def plot_mflops(data, Ns, outdir):
+# def plot_mflops(data, Ns, outdir):
+def plot_mflops_basic_vectorized_blas(data, Ns, outdir):
+    """
+    Chart 1: MFLOP/s vs N for benchmark-basic, benchmark-vectorized, benchmark-blas (t=1)
+    """
+    import matplotlib.pyplot as plt
+    os.makedirs(outdir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8,5))
+    impls = ["benchmark-basic", "benchmark-vectorized", "benchmark-blas"]
+    colors = ["#1f77b4", "#e377c2", "#ff7f0e"]
+    for impl, color in zip(impls, colors):
+        key = (impl, 1)
+        nmap = data.get(key, {})
+        xs = []
+        ys = []
+        for N in Ns:
+            med = median(nmap.get(N, []))
+            if med is None:
+                continue
+            xs.append(N)
+            ys.append(med)
+        if xs:
+            ax.plot(xs, ys, marker='o', label=impl.replace("benchmark-", "").capitalize(), color=color)
+    ax.set_xlabel('Problem size N')
+    ax.set_ylabel('MFLOP/s')
+    ax.set_title('MFLOP/s: Basic, Vectorized, BLAS')
+    ax.grid(True, ls='--', alpha=0.4)
+    ax.legend()
+    fig.tight_layout()
+    outpath = os.path.join(outdir, 'mflops_basic_vectorized_blas.png')
+    fig.savefig(outpath)
+    print('Wrote', outpath)
+
+def plot_speedup_openmp_vs_n(data, Ns, outdir):
+    """
+    Chart 2: Speedup vs N for OpenMP at 1,4,16,64 threads
+    """
+    import matplotlib.pyplot as plt
+    os.makedirs(outdir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8,5))
+    thread_list = [1,4,16,64]
+    for t in thread_list:
+        key = ("benchmark-openmp", t)
+        nmap = data.get(key, {})
+        xs = []
+        ys = []
+        for N in Ns:
+            base = median(data.get(("benchmark-openmp", 1), {}).get(N, []))
+            val = median(nmap.get(N, []))
+            if base and val:
+                xs.append(N)
+                ys.append(val/base)
+        if xs:
+            ax.plot(xs, ys, marker='o', label=f"threads={t}")
+    ax.set_xlabel('Problem size N')
+    ax.set_ylabel('Speedup vs threads=1')
+    ax.set_title('OpenMP Speedup vs N (static scheduling)')
+    ax.grid(True, ls='--', alpha=0.4)
+    ax.legend()
+    fig.tight_layout()
+    outpath = os.path.join(outdir, 'speedup_openmp_vs_n.png')
+    fig.savefig(outpath)
+    print('Wrote', outpath)
+
+def plot_mflops_best_openmp_vs_blas(data, Ns, outdir):
+    """
+    Chart 3: MFLOP/s vs N for best OpenMP config and serial BLAS
+    """
+    import matplotlib.pyplot as plt
+    os.makedirs(outdir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8,5))
+    # Best OpenMP: for each N, pick max MFLOP/s among thread counts
+    best_omp = []
+    blas = []
+    for N in Ns:
+        best = None
+        for t in [1,4,16,64]:
+            val = median(data.get(("benchmark-openmp", t), {}).get(N, []))
+            if val is not None:
+                if best is None or val > best:
+                    best = val
+        best_omp.append(best if best is not None else float('nan'))
+        blas_val = median(data.get(("benchmark-blas", 1), {}).get(N, []))
+        blas.append(blas_val if blas_val is not None else float('nan'))
+    ax.plot(Ns, best_omp, marker='o', label='Best OpenMP (threads=16)', color='#2ca02c')
+    ax.plot(Ns, blas, marker='o', label='BLAS (serial)', color='#ff7f0e')
+    ax.set_xlabel('Problem size N')
+    ax.set_ylabel('MFLOP/s')
+    ax.set_title('Best OpenMP vs BLAS (MFLOP/s)')
+    ax.grid(True, ls='--', alpha=0.4)
+    ax.legend()
+    fig.tight_layout()
+    outpath = os.path.join(outdir, 'mflops_best_openmp_vs_blas.png')
+    fig.savefig(outpath)
+    print('Wrote', outpath)
     try:
         import matplotlib.pyplot as plt
     except Exception as e:
@@ -86,14 +180,14 @@ def plot_mflops(data, Ns, outdir):
         label = f"{impl} (t={threads})"
         ax.plot(xs, ys, marker='o', label=label)
 
-    ax.set_xscale('log', base=2)
-    ax.set_xlabel('Problem size N (log2)')
-    ax.set_ylabel('MFLOP/s (median across trials)')
+    ax.set_xscale('linear')
+    ax.set_xlabel('Problem size N')
+    ax.set_ylabel('MFLOP/s')
     ax.set_title('VMM Benchmark: MFLOP/s vs N')
     ax.grid(True, which='both', ls='--', alpha=0.4)
     ax.legend(fontsize='small')
     fig.tight_layout()
-    outpath = os.path.join(outdir, 'mflops.png')
+    outpath = os.path.join(outdir, 'mflops_abs.png')
     fig.savefig(outpath)
     print('Wrote', outpath)
 
@@ -172,8 +266,9 @@ def main():
     data, Ns = prepare_series(rows)
 
     try:
-        plot_mflops(data, Ns, args.outdir)
-        plot_speedup_openmp(data, Ns, args.outdir)
+        plot_mflops_basic_vectorized_blas(data, Ns, args.outdir)
+        plot_speedup_openmp_vs_n(data, Ns, args.outdir)
+        plot_mflops_best_openmp_vs_blas(data, Ns, args.outdir)
     except Exception:
         # fallback: show ASCII summary
         ascii_summary(data, Ns)
